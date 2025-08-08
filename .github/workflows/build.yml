@@ -10,7 +10,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -18,7 +18,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y ninja-build libboost-dev gcc g++ ccache cmake
+        sudo apt-get install -y ninja-build libboost-dev gcc g++ ccache cmake libhwloc-dev
 
     - name: Set up CMake
       uses: jwlawson/actions-setup-cmake@v2
@@ -34,6 +34,9 @@ jobs:
           sudo apt-get install -y cmake
           cmake --version
         fi
+
+    - name: Create ccache directory
+      run: mkdir -p ~/.ccache
 
     - name: Setup ccache
       uses: actions/cache@v4
@@ -59,6 +62,41 @@ jobs:
         ccache --set-config=max_size=400M
         ccache --set-config=compression=true
         ccache --zero-stats
+
+    - name: Cache HPX
+      id: cache-hpx
+      uses: actions/cache@v4
+      with:
+        path: ~/hpx-install
+        key: hpx-${{ runner.os }}-${{ hashFiles('.github/workflows/hpx-version.txt') }}
+
+    - name: Build HPX from source
+      if: steps.cache-hpx.outputs.cache-hit != 'true'
+      run: |
+        # Define local variables
+        HPX_VERSION="1.11.0"
+        HPX_PREFIX="${HOME}/hpx-install"
+        HPX_URL="https://github.com/STEllAR-GROUP/hpx/archive/refs/tags"
+
+        # Download and extract HPX
+        wget "${HPX_URL}/v${HPX_VERSION}.tar.gz" -O - | tar -zxf -
+        mkdir -p hpx-${HPX_VERSION}/build
+        cd hpx-${HPX_VERSION}/build
+
+        # Configure HPX
+        cmake -DCMAKE_INSTALL_PREFIX=${HPX_PREFIX} \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DHPX_WITH_FETCH_ASIO=ON \
+          -DHPX_WITH_MALLOC=system \
+          -DHPX_WITH_EXAMPLES=OFF \
+          -DHPX_WITH_TESTS=OFF \
+          ..
+
+        # Build and Install HPX
+        cmake --build . --target install --parallel "$(nproc)"
+
+    - name: Install HPX to system location
+      run: sudo cp -r ~/hpx-install/* /usr/local/
 
     - name: Configure CMake
       run: |

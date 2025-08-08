@@ -5,11 +5,17 @@ project(iosched)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# include HPX
+find_package(HPX REQUIRED)
+# include boost
+find_package(Boost REQUIRED)
+
 # enable tests with googletest
 option(IOSCHED_ENABLE_TESTS "Build the tests for this project" OFF)
-
 # enable code coverage
 option(IOSCHED_ENABLE_COVERAGE "Enable code coverage reporting with gcovr" OFF)
+
+# configure tests
 if(IOSCHED_ENABLE_TESTS)
   include(FetchContent)
   FetchContent_Declare(
@@ -24,24 +30,6 @@ if(IOSCHED_ENABLE_TESTS)
 
   add_subdirectory(tests)
 endif()
-
-# include NVIDIA [stdexec](https://github.com/NVIDIA/stdexec)
-file(
-  DOWNLOAD
-  https://github.com/cpm-cmake/CPM.cmake/releases/download/v0.40.8/CPM.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake
-  EXPECTED_HASH SHA256=78ba32abdf798bc616bab7c73aac32a17bbd7b06ad9e26a6add69de8f3ae4791
-)
-include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
-CPMAddPackage(
-  NAME stdexec
-  GITHUB_REPOSITORY NVIDIA/stdexec
-  GIT_TAG main # This will always pull the latest code from the `main` branch. You may also use a specific release version or tag
-)
-
-# include boost
-find_package(Boost REQUIRED)
-
 
 # configure coverage reporting
 if(IOSCHED_ENABLE_COVERAGE)
@@ -73,7 +61,7 @@ if(IOSCHED_ENABLE_COVERAGE)
       ${CMAKE_BINARY_DIR}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Generating code coverage report with gcovr"
-    DEPENDS socket_test
+    DEPENDS socket_message_test
   )
 
   # Create coverage-xml target for CI/CD integration
@@ -88,8 +76,10 @@ if(IOSCHED_ENABLE_COVERAGE)
       ${CMAKE_BINARY_DIR}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Generating code coverage XML report with gcovr"
-    DEPENDS socket_test
+    DEPENDS socket_message_test
   )
 
   message(STATUS "Code coverage enabled. Use 'cmake --build . --target coverage' to generate reports.")
 endif()
+
+add_subdirectory(src)
